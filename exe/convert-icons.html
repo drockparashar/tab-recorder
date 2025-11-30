@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SVG to PNG Converter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 0;
+    }
+    button:hover {
+      background: #5568d3;
+    }
+    .status {
+      margin: 20px 0;
+      padding: 10px;
+      background: #f0f0f0;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1>SVG to PNG Icon Converter</h1>
+  <p>This tool converts the SVG icons to PNG format.</p>
+  <button onclick="convertIcons()">Convert Icons</button>
+  <div class="status" id="status">Click the button to convert icons...</div>
+
+  <script>
+    async function convertIcons() {
+      const status = document.getElementById('status');
+      const icons = [
+        { name: 'icon16', size: 16 },
+        { name: 'icon48', size: 48 },
+        { name: 'icon128', size: 128 }
+      ];
+
+      status.innerHTML = 'Converting icons...<br>';
+
+      for (const icon of icons) {
+        try {
+          const svg = await fetch(`icons/${icon.name}.svg`).then(r => r.text());
+          const png = await svgToPng(svg, icon.size);
+          
+          // Create download link
+          const a = document.createElement('a');
+          a.href = png;
+          a.download = `${icon.name}.png`;
+          a.click();
+          
+          status.innerHTML += `✓ ${icon.name}.png created<br>`;
+        } catch (error) {
+          status.innerHTML += `✗ Error converting ${icon.name}: ${error.message}<br>`;
+        }
+      }
+
+      status.innerHTML += '<br>Done! Check your Downloads folder.';
+    }
+
+    function svgToPng(svgText, size) {
+      return new Promise((resolve, reject) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = reject;
+        
+        const blob = new Blob([svgText], { type: 'image/svg+xml' });
+        img.src = URL.createObjectURL(blob);
+      });
+    }
+  </script>
+</body>
+</html>
