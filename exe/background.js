@@ -51,22 +51,24 @@ chrome.webNavigation.onCompleted.addListener(async (details) => {
     // Wait a bit for page to load
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // Start recording automatically
+    // Show notification with button to start recording
     autoRecordTabId = details.tabId;
-    startRecording((response) => {
-      if (response.success) {
-        console.log("🎬 Auto-recording started!");
-        // Show notification
-        chrome.notifications?.create({
-          type: "basic",
-          iconUrl: "icons/icon48.svg",
-          title: "Recording Started",
-          message: "Auto-recording started for this tab",
-        });
-      } else {
-        console.error("❌ Auto-record failed:", response.error);
+    chrome.notifications?.create(
+      {
+        type: "basic",
+        iconUrl: "icons/icon48.svg",
+        title: "Tab Recorder",
+        message: "Do you want to start recording this tab?",
+        buttons: [{ title: "Start Recording" }],
+        requireInteraction: true,
+        priority: 2,
+      },
+      (notificationId) => {
+        // Store the tabId for this notification
+        if (!window._tabRecorderNotifMap) window._tabRecorderNotifMap = {};
+        window._tabRecorderNotifMap[notificationId] = details.tabId;
       }
-    }, details.tabId);
+    );
   } else if (
     CONFIG.AUTO_RECORD.stopOnNavigateAway &&
     isRecording &&
@@ -83,6 +85,37 @@ chrome.webNavigation.onCompleted.addListener(async (details) => {
     });
   }
 });
+
+// Listen for notification button clicks
+chrome.notifications?.onButtonClicked.addListener(
+  (notificationId, buttonIndex) => {
+    if (
+      buttonIndex === 0 &&
+      window._tabRecorderNotifMap &&
+      window._tabRecorderNotifMap[notificationId] !== undefined
+    ) {
+      const tabId = window._tabRecorderNotifMap[notificationId];
+      startRecording((response) => {
+        if (response.success) {
+          console.log("🎬 Recording started from notification!");
+          chrome.notifications?.clear(notificationId);
+          chrome.notifications?.create({
+            type: "basic",
+            iconUrl: "icons/icon48.svg",
+            title: "Recording Started",
+            message: "Recording started for this tab.",
+          });
+        } else {
+          console.error(
+            "❌ Recording failed from notification:",
+            response.error
+          );
+        }
+      }, tabId);
+      delete window._tabRecorderNotifMap[notificationId];
+    }
+  }
+);
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
